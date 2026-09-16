@@ -1,0 +1,30 @@
+# Wrangler / Cloudflare
+.wrangler/
+.dev.vars
+.mf/
+
+# IDE / editors
+.idea/
+.vscode/
+*.iml
+
+# Claude / local agent
+.claude/
+
+# Dependencies & logs
+node_modules/
+npm-debug.log*
+yarn-error.log*
+
+# OS junk
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Local / generated
+playlist.js
+*.zip
+*.log
+.env
+.env.*
+!.env.example
