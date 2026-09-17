@@ -1,4 +1,4 @@
-const CACHE_NAME = 'wyplayer-v23';
+const CACHE_NAME = 'wyplayer-v27';
 
 // 核心资源 - 安装时缓存
 const CORE_ASSETS = [
@@ -10,6 +10,7 @@ const CORE_ASSETS = [
   './css/components.css',
   './js/tailwindcss.js',
   './js/color-thief.umd.js',
+  './js/play-effects.js',
   './img/icon.svg',
   './img/icon.png',
   './manifest.json'

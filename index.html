@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>WyPlayer</title>
 
     <!-- Favicon -->
@@ -318,6 +318,20 @@
             flex-shrink: 0;
             /* 防止被压缩*/
             margin-top: 0;
+            overflow: visible;
+        }
+
+        .play-effect-canvas {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            width: 215%;
+            height: 215%;
+            z-index: 1;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.35s ease;
         }
 
         .album-art-wrapper {
@@ -1112,9 +1126,18 @@
 
         @media (max-height: 650px) {
 
-            #desktopLayout header,
-            #mobileLayout header {
+            /* 桌面端矮屏可藏顶栏；手机端必须保留设置入口 */
+            #desktopLayout header {
                 display: none !important;
+            }
+
+            #mobileLayout header {
+                display: flex !important;
+                min-height: calc(2.75rem + env(safe-area-inset-top, 0px)) !important;
+            }
+
+            #mobileLayout header h1 {
+                font-size: 0.95rem;
             }
 
             :root {
@@ -1142,8 +1165,14 @@
                 margin-bottom: 8px;
             }
 
+            /* 横屏仍保留设置按钮，只压缩标题栏 */
             #mobileLayout header {
-                display: none !important;
+                display: flex !important;
+                min-height: calc(2.25rem + env(safe-area-inset-top, 0px)) !important;
+            }
+
+            #mobileLayout header h1 {
+                font-size: 0.85rem;
             }
 
             #mobileVinylContainer {
@@ -1442,11 +1471,24 @@
     <!-- Mobile Layout (Visible < md) -->
     <div id="mobileLayout" class="md:hidden flex flex-col h-[100dvh] w-full overflow-hidden relative z-10">
         <!-- 1. Header -->
-        <header class="flex-none h-14 flex items-center justify-center relative z-20">
-            <h1 class="text-lg font-bold tracking-wider opacity-90">WyPlayer</h1>
-            <!-- 设置按钮 (移动端 -->
-            <button id="mobileSettingsBtn" class="absolute right-4 p-2 opacity-70 active:opacity-100">
-                <i class="fas fa-cog"></i>
+        <header class="flex-none min-h-14 flex items-center justify-center relative z-30"
+            style="padding-top: env(safe-area-inset-top, 0px); min-height: calc(3.5rem + env(safe-area-inset-top, 0px));">
+            <!-- 账号（手机）：左侧头像入口 -->
+            <button id="mobileAccountBtn" type="button" title="账号" aria-label="账号"
+                class="absolute left-3 z-40 flex items-center justify-center w-10 h-10 rounded-full bg-white/10 active:bg-white/20"
+                style="top: calc(0.35rem + env(safe-area-inset-top, 0px));">
+                <img id="mobileHeaderAccountAvatar" class="w-8 h-8 rounded-full object-cover bg-white/10 hidden" alt="">
+                <span id="mobileHeaderAccountAvatarFb" class="w-8 h-8 rounded-full bg-primary-color/20 flex items-center justify-center">
+                    <i id="mobileAccountBtnIcon" class="fas fa-user text-sm theme-text-primary"></i>
+                </span>
+                <span id="mobileAccountStatusDot" class="absolute right-0 top-0 w-2.5 h-2.5 rounded-full bg-white/40 border border-black/20"></span>
+            </button>
+            <h1 class="text-lg font-bold tracking-wider opacity-90 px-14 truncate">WyPlayer</h1>
+            <!-- 设置按钮：始终可见 -->
+            <button id="mobileSettingsBtn" type="button" aria-label="设置"
+                class="absolute right-3 p-2.5 opacity-80 active:opacity-100 z-40"
+                style="top: calc(0.35rem + env(safe-area-inset-top, 0px));">
+                <i class="fas fa-cog text-lg"></i>
             </button>
         </header>
 
@@ -1455,7 +1497,7 @@
 
             <!-- A. Cover Mode (Default) -->
             <div id="mobileCoverContainer"
-                class="absolute inset-0 flex flex-col items-center justify-center pb-10 px-4 transition-all duration-500 opacity-100 z-10 overflow-hidden transform translate-x-0">
+                class="absolute inset-0 flex flex-col items-center justify-center pb-10 px-4 transition-all duration-500 opacity-100 z-10 overflow-visible transform translate-x-0">
 
                 <!-- Vinyl Record (Unified Style) -->
                 <div class="visualizer-container mb-2 mt-2" id="mobileVinylContainer"
@@ -1803,6 +1845,23 @@
 
                 <details class="settings-section">
                     <summary class="flex items-center gap-3 px-4 py-3 cursor-pointer select-none">
+                        <i class="fas fa-magic text-primary-color w-5 text-center"></i>
+                        <span class="flex-1 min-w-0">
+                            <span class="block text-sm font-bold">播放效果</span>
+                            <span id="currentEffectSummary" class="block text-[10px] opacity-45 truncate"></span>
+                        </span>
+                        <i class="settings-chevron fas fa-chevron-down text-xs opacity-40 transition-transform"></i>
+                    </summary>
+                    <div class="px-4 pb-4 border-t border-white/5 pt-3">
+                        <div id="effectOptions" class="space-y-1.5"></div>
+                        <div class="mt-3 text-[10px] opacity-45 leading-relaxed">
+                            选择播放器效果。
+                        </div>
+                    </div>
+                </details>
+
+                <details class="settings-section">
+                    <summary class="flex items-center gap-3 px-4 py-3 cursor-pointer select-none">
                         <i class="fas fa-server text-primary-color w-5 text-center"></i>
                         <span class="flex-1 min-w-0">
                             <span class="block text-sm font-bold">API 与账号</span>
@@ -1866,6 +1925,8 @@
 
     <!-- JavaScript 逻辑 -->
     <script type="module">
+        import { PlayEffectsEngine, PLAY_EFFECT_OPTIONS, getStoredPlayEffect } from './js/play-effects.js';
+
         // 监听 plusready 事件，增加原生能力支
         document.addEventListener('plusready', function () {
             // 锁定屏幕方向为竖
@@ -2057,6 +2118,7 @@
         const musicService = new MusicService();
 
         let audio = new Audio();
+        let playEffects = null;
         audio.crossOrigin = 'anonymous';
         audio.preload = 'metadata';
         audio.volume = 0.5;
@@ -2309,6 +2371,7 @@
 
             initEventListeners();
             initSettingsUI();
+            initPlayEffects();
             initUserPlaylistsUI();
             initAccountPanel();
             const restoredPlayback = await restoreLocalPlaybackState();
@@ -3028,52 +3091,72 @@
         function updateHeaderIdentity(partial) {
             if (partial) headerIdentity = { ...headerIdentity, ...partial };
             const { state, source, account } = headerIdentity;
-            const dot = document.getElementById('accountStatusDot');
+            const dots = [
+                document.getElementById('accountStatusDot'),
+                document.getElementById('mobileAccountStatusDot'),
+            ].filter(Boolean);
             const icon = document.getElementById('accountBtnIcon');
+            const mobileIcon = document.getElementById('mobileAccountBtnIcon');
             const nameEl = document.getElementById('headerAccountName');
             const hintEl = document.getElementById('headerAccountHint');
             const avatar = document.getElementById('headerAccountAvatar');
             const avatarFb = document.getElementById('headerAccountAvatarFb');
+            const mobileAvatar = document.getElementById('mobileHeaderAccountAvatar');
+            const mobileAvatarFb = document.getElementById('mobileHeaderAccountAvatarFb');
             const isLocal = source === 'local';
 
-            if (dot) {
-                dot.className = 'absolute -right-0.5 -top-0.5 w-2.5 h-2.5 rounded-full border border-black/20';
+            const applyDot = (dot) => {
+                dot.className = (dot.id === 'mobileAccountStatusDot'
+                    ? 'absolute right-0 top-0 w-2.5 h-2.5 rounded-full border border-black/20 '
+                    : 'absolute -right-0.5 -top-0.5 w-2.5 h-2.5 rounded-full border border-black/20 ');
                 if (state === 'local' || (state === 'ok' && isLocal)) dot.classList.add('bg-sky-400');
                 else if (state === 'ok') dot.classList.add('bg-green-400');
                 else if (state === 'expired') dot.classList.add('bg-red-400');
                 else if (state === 'missing') dot.classList.add('bg-amber-400');
                 else dot.classList.add('bg-white/40');
-            }
+            };
+            dots.forEach(applyDot);
 
             const nick = account?.nickname || '';
             const btn = document.getElementById('accountEntryBtn');
+            const mobileBtn = document.getElementById('mobileAccountBtn');
             if (nameEl) {
                 if (nick) nameEl.textContent = nick;
                 else if (state === 'missing') nameEl.textContent = '未登录';
                 else if (state === 'expired') nameEl.textContent = '已失效';
                 else nameEl.textContent = '账号';
             }
-            if (btn) {
-                btn.title = nick || '账号';
-            }
+            const title = nick || '账号';
+            if (btn) btn.title = title;
+            if (mobileBtn) mobileBtn.title = title;
             if (hintEl) {
                 if (state === 'missing') hintEl.textContent = '点击配置';
                 else if (state === 'expired') hintEl.textContent = isLocal ? '本机号失效' : '站点号失效';
                 else if (nick || state === 'ok' || state === 'local') hintEl.textContent = isLocal ? '正在用本机号' : '正在用站点号';
                 else hintEl.textContent = '点击登录';
             }
-            if (icon) {
-                icon.className = isLocal ? 'fas fa-user-check text-sm theme-text-primary'
-                    : (state === 'missing' || state === 'expired' ? 'fas fa-user text-sm theme-text-primary'
-                        : 'fas fa-user text-sm theme-text-primary');
-            }
-            if (account?.avatarUrl && avatar) {
-                avatar.src = account.avatarUrl;
-                avatar.classList.remove('hidden');
+            const iconClass = isLocal ? 'fas fa-user-check text-sm theme-text-primary'
+                : 'fas fa-user text-sm theme-text-primary';
+            if (icon) icon.className = iconClass;
+            if (mobileIcon) mobileIcon.className = iconClass;
+
+            const hasAvatar = Boolean(account?.avatarUrl);
+            if (hasAvatar) {
+                if (avatar) {
+                    avatar.src = account.avatarUrl;
+                    avatar.classList.remove('hidden');
+                }
                 if (avatarFb) avatarFb.classList.add('hidden');
+                if (mobileAvatar) {
+                    mobileAvatar.src = account.avatarUrl;
+                    mobileAvatar.classList.remove('hidden');
+                }
+                if (mobileAvatarFb) mobileAvatarFb.classList.add('hidden');
             } else {
                 if (avatar) avatar.classList.add('hidden');
                 if (avatarFb) avatarFb.classList.remove('hidden');
+                if (mobileAvatar) mobileAvatar.classList.add('hidden');
+                if (mobileAvatarFb) mobileAvatarFb.classList.remove('hidden');
             }
         }
 
@@ -3363,6 +3446,10 @@
 
         function initAccountPanel() {
             document.getElementById('accountEntryBtn')?.addEventListener('click', () => openAccountModal('guest'));
+            document.getElementById('mobileAccountBtn')?.addEventListener('click', (e) => {
+                e.stopPropagation();
+                openAccountModal('guest');
+            });
             document.getElementById('closeAccountBtn')?.addEventListener('click', () => closeAccountModal());
             document.getElementById('accountModal')?.addEventListener('click', (e) => {
                 if (e.target?.id === 'accountModal') closeAccountModal();
@@ -3808,6 +3895,50 @@
         // ================= 设置 UI =================
         function initSettingsUI() {
             renderQualityOptions();
+            renderEffectOptions();
+        }
+
+        function initPlayEffects() {
+            playEffects = new PlayEffectsEngine();
+            playEffects.bindAudio(audio);
+            const desktop = document.querySelector('#desktopLayout .visualizer-container');
+            const mobile = document.getElementById('mobileVinylContainer');
+            if (desktop) playEffects.attach(desktop);
+            if (mobile) playEffects.attach(mobile);
+            playEffects.setMode(getStoredPlayEffect());
+            playEffects.setPlaying(Boolean(isPlaying));
+        }
+
+        function updateEffectSummary() {
+            const summary = document.getElementById('currentEffectSummary');
+            if (!summary) return;
+            const id = playEffects?.mode || getStoredPlayEffect();
+            const opt = PLAY_EFFECT_OPTIONS.find((o) => o.id === id);
+            summary.textContent = opt ? `${opt.name} · ${opt.desc}` : '';
+        }
+
+        function renderEffectOptions() {
+            const container = document.getElementById('effectOptions');
+            if (!container) return;
+            const current = playEffects?.mode || getStoredPlayEffect();
+            container.innerHTML = PLAY_EFFECT_OPTIONS.map((option) => `
+                <label class="quality-option ${current === option.id ? 'is-selected' : ''} flex items-center gap-2 px-3 py-2 rounded-xl cursor-pointer transition-colors">
+                    <input type="radio" name="playEffect" value="${option.id}"
+                        class="accent-current" ${current === option.id ? 'checked' : ''}>
+                    <span class="flex-1 min-w-0">
+                        <strong class="block text-xs truncate">${option.name}</strong>
+                        <span class="block text-[9px] opacity-45 truncate">${option.desc}</span>
+                    </span>
+                </label>
+            `).join('');
+            container.querySelectorAll('input[name="playEffect"]').forEach((input) => {
+                input.addEventListener('change', () => {
+                    playEffects?.setMode(input.value);
+                    renderEffectOptions();
+                    showToast(`播放效果：${PLAY_EFFECT_OPTIONS.find((o) => o.id === input.value)?.name || input.value}`);
+                });
+            });
+            updateEffectSummary();
         }
 
         function updateQualitySummary() {
@@ -3884,6 +4015,7 @@
             dom.settingsModal.querySelector('.modal-card').classList.add('scale-100');
 
             updateSourceDisplay();
+            renderEffectOptions();
         }
 
         function updateSourceDisplay() {
@@ -3928,6 +4060,7 @@
             dom.playPauseBtn.innerHTML = '<i class="fas fa-pause text-2xl text-on-primary-color"></i>';
             dom.albumArtWrapper.classList.add('playing');
             if (mobileUI) mobileUI.updatePlayState(true); // Mobile
+            playEffects?.setPlaying(true);
 
             if ('mediaSession' in navigator) {
                 navigator.mediaSession.playbackState = 'playing';
@@ -3939,6 +4072,7 @@
             dom.playPauseBtn.innerHTML = '<i class="fas fa-play text-2xl ml-1 text-on-primary-color"></i>';
             dom.albumArtWrapper.classList.remove('playing');
             if (mobileUI) mobileUI.updatePlayState(false); // Mobile
+            playEffects?.setPlaying(false);
 
             if ('mediaSession' in navigator) {
                 navigator.mediaSession.playbackState = 'paused';
@@ -5989,6 +6123,10 @@
                                 return `rgb(${nr}, ${ng}, ${nb})`;
                             });
                             console.log('🎨 更新后的背景颜色:', this.colors);
+                            // 播放特效只跟随取色，不改动 ColorThief / 转动本身
+                            if (typeof playEffects !== 'undefined' && playEffects?.setPrimaryColor) {
+                                playEffects.setPrimaryColor(this.colors[0]);
+                            }
                             return;
                         }
                     } else {
@@ -6010,6 +6148,9 @@
                         `rgb(${Math.round(data[12] * 0.8)}, ${Math.round(data[13] * 0.8)}, ${Math.round(data[14] * 0.8)})`
                     ];
                     console.log('🎨 降级采样的背景颜色', this.colors);
+                    if (typeof playEffects !== 'undefined' && playEffects?.setPrimaryColor) {
+                        playEffects.setPrimaryColor(this.colors[0]);
+                    }
                 } catch (e) {
                     console.warn('❌ 颜色提取失败:', e);
                 }
