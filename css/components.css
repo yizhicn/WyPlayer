@@ -516,5 +516,9 @@
 /* Cursor */
 .cursor-pointer { cursor: pointer; }
 
-/* User Select */
-.select-none { user-select: none; }
+/* Account modal tabs */
+.account-tab--active {
+    background: rgba(255, 255, 255, 0.12);
+    opacity: 1 !important;
+    color: inherit;
+}

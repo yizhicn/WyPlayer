@@ -136,19 +136,42 @@
             display: none;
         }
 
+        .custom-scrollbar {
+            scrollbar-width: thin;
+            scrollbar-color: rgba(255, 255, 255, 0.22) transparent;
+        }
+
         .custom-scrollbar::-webkit-scrollbar {
-            display: block;
             width: 4px;
+            height: 4px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
         }
 
         .custom-scrollbar::-webkit-scrollbar-thumb {
-            background: var(--primary-color);
-            border-radius: 4px;
+            background: rgba(255, 255, 255, 0.22);
+            border-radius: 999px;
         }
 
-        .custom-scrollbar {
-            scrollbar-width: thin;
-            scrollbar-color: var(--primary-color) transparent;
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.4);
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-button,
+        .custom-scrollbar::-webkit-scrollbar-corner {
+            display: none;
+            width: 0;
+            height: 0;
+        }
+
+        .vip-badge-img {
+            display: inline-block;
+            height: 14px;
+            width: auto;
+            vertical-align: -2px;
+            flex-shrink: 0;
         }
 
         .no-scrollbar::-webkit-scrollbar { display: none; }
@@ -1212,14 +1235,16 @@
                 </h1>
                 <!-- 设置 & 全屏按钮（从右上角固定位置移入此处） -->
                 <div class="flex items-center gap-2">
-                    <button id="guestLoginBtn" title="访客登录" aria-label="访客登录"
-                        class="btn btn--glass btn--icon relative">
-                        <i id="guestLoginBtnIcon" class="fas fa-qrcode"></i>
-                        <span id="guestStatusDot" class="absolute -right-0.5 -top-0.5 w-2.5 h-2.5 rounded-full bg-white/40 border border-black/20"></span>
-                    </button>
-                    <button id="accountBtn" title="账号管理" aria-label="账号管理"
-                        class="btn btn--glass btn--icon relative">
-                        <i id="accountBtnIcon" class="fas fa-user-shield"></i>
+                    <button id="accountEntryBtn" title="账号" aria-label="账号"
+                        class="btn btn--glass relative flex items-center gap-2 !rounded-full pl-1.5 pr-2.5 h-10 max-w-[min(16rem,calc(100vw-11rem))]">
+                        <img id="headerAccountAvatar" class="w-7 h-7 rounded-full object-cover bg-white/10 hidden flex-shrink-0" alt="">
+                        <span id="headerAccountAvatarFb" class="w-7 h-7 rounded-full bg-primary-color/20 flex items-center justify-center flex-shrink-0">
+                            <i id="accountBtnIcon" class="fas fa-user text-sm theme-text-primary"></i>
+                        </span>
+                        <span class="flex flex-col items-start leading-tight text-left min-w-[6.75rem] max-w-full overflow-hidden">
+                            <span id="headerAccountName" class="text-xs font-bold truncate w-full">账号</span>
+                            <span id="headerAccountHint" class="text-[10px] opacity-45 whitespace-nowrap">点击登录</span>
+                        </span>
                         <span id="accountStatusDot" class="absolute -right-0.5 -top-0.5 w-2.5 h-2.5 rounded-full bg-white/40 border border-black/20"></span>
                     </button>
                     <button id="settingsBtn" title="设置" aria-label="打开设置"
@@ -1608,84 +1633,22 @@
         </div>
     </div>
 
-    <!-- 账号管理（ADMIN 密码 + 扫码更新 Cookie） -->
-    <div id="adminModal"
+    <!-- 账号（换号登录 + 站点管理） -->
+    <div id="accountModal"
         class="fixed inset-0 z-[120] flex items-center justify-center modal-backdrop hidden opacity-0 transition-opacity duration-300">
-        <div class="modal-card w-full max-w-sm mx-4 p-6 rounded-3xl shadow-2xl transform scale-95 transition-transform duration-300">
-            <div class="flex justify-between items-center mb-5">
-                <h2 class="text-xl font-bold flex items-center"><i class="fas fa-user-shield mr-2 theme-text-primary"></i>账号管理</h2>
-                <button id="closeAdminBtn" class="w-8 h-8 rounded-full flex items-center justify-center hover:bg-black/10 transition-colors"><i class="fas fa-times"></i></button>
+        <div class="modal-card w-full max-w-sm mx-4 p-5 rounded-3xl shadow-2xl transform scale-95 transition-transform duration-300 max-h-[88vh] overflow-y-auto custom-scrollbar">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold flex items-center"><i class="fas fa-user mr-2 theme-text-primary"></i>账号</h2>
+                <button id="closeAccountBtn" class="w-8 h-8 rounded-full flex items-center justify-center hover:bg-black/10 transition-colors"><i class="fas fa-times"></i></button>
             </div>
 
-            <!-- 步骤0：首次设置 ADMIN 密码 -->
-            <div id="adminSetupPane" class="hidden space-y-3">
-                <p class="text-xs opacity-50 leading-relaxed">首次使用：设置管理密码，会写入 Cloudflare KV 键 <code class="bg-white/10 px-1 rounded">ADMIN</code>。之后用此密码进入管理页扫码登录网易云。</p>
-                <input id="adminSetupPasswordInput" type="password" autocomplete="new-password" placeholder="设置管理密码（至少 4 位）" class="input w-full">
-                <input id="adminSetupPasswordConfirm" type="password" autocomplete="new-password" placeholder="再输入一次" class="input w-full">
-                <button id="adminSetupBtn" class="btn btn--primary w-full">保存并进入</button>
-                <p id="adminSetupError" class="text-xs text-red-400 hidden"></p>
+            <div class="grid grid-cols-2 gap-1 p-1 mb-4 rounded-2xl bg-white/5 border border-white/10">
+                <button type="button" id="accountTabGuest" class="account-tab account-tab--active rounded-xl py-2 text-sm font-bold transition-colors">换号登录</button>
+                <button type="button" id="accountTabAdmin" class="account-tab rounded-xl py-2 text-sm font-bold opacity-55 transition-colors">站点管理</button>
             </div>
 
-            <!-- 步骤1：输入 ADMIN 密码 -->
-            <div id="adminLoginPane" class="space-y-3">
-                <p class="text-xs opacity-50 leading-relaxed">请输入管理密码（KV 键 <code class="bg-white/10 px-1 rounded">ADMIN</code>）。</p>
-                <input id="adminPasswordInput" type="password" autocomplete="current-password" placeholder="管理密码" class="input w-full">
-                <button id="adminLoginBtn" class="btn btn--primary w-full">进入管理</button>
-                <p id="adminLoginError" class="text-xs text-red-400 hidden"></p>
-            </div>
-
-            <!-- 步骤2：账号信息 + 扫码 -->
-            <div id="adminPanelPane" class="hidden space-y-4">
-                <div id="adminAccountCard" class="p-3 rounded-2xl border border-white/10 bg-white/[0.04]">
-                    <div class="flex items-center gap-3">
-                        <img id="adminAvatar" class="w-12 h-12 rounded-full object-cover bg-white/10 hidden" alt="">
-                        <div class="w-12 h-12 rounded-full bg-primary-color/15 flex items-center justify-center" id="adminAvatarFallback">
-                            <i class="fas fa-user text-primary-color"></i>
-                        </div>
-                        <div class="flex-1 min-w-0">
-                            <div id="adminNickname" class="text-sm font-bold truncate">未登录</div>
-                            <div id="adminMeta" class="text-xs opacity-50 truncate">正在检查 Cookie…</div>
-                        </div>
-                    </div>
-                    <div id="adminCookieBanner" class="mt-3 text-xs rounded-xl px-3 py-2 bg-white/5 opacity-70"></div>
-                </div>
-
-                <div class="space-y-2">
-                    <div class="text-sm font-bold">扫码更新网易云 Cookie</div>
-                    <p class="text-[11px] opacity-45 leading-relaxed">使用网易云 App 扫描下方二维码，授权后会自动写入 KV 键 <code class="bg-white/10 px-1 rounded">NETEASE_COOKIE</code>。</p>
-                    <div class="flex flex-col items-center gap-2 py-2">
-                        <div class="w-48 h-48 rounded-2xl bg-white flex items-center justify-center overflow-hidden">
-                            <img id="adminQrImg" alt="扫码登录" class="w-full h-full object-contain hidden">
-                            <span id="adminQrPlaceholder" class="text-xs text-black/40 px-4 text-center">点击下方按钮生成二维码</span>
-                        </div>
-                        <div id="adminQrStatus" class="text-xs opacity-60">等待开始</div>
-                    </div>
-                    <div class="grid grid-cols-2 gap-2">
-                        <button id="adminRefreshQrBtn" class="btn btn--primary w-full text-sm">生成 / 刷新二维码</button>
-                        <button id="adminRefreshStatusBtn" class="btn btn--glass w-full text-sm">刷新账号状态</button>
-                    </div>
-                    <div class="pt-2 space-y-2 border-t border-white/10">
-                        <div class="text-xs font-bold opacity-70">扫码失败时：手动写入 KV</div>
-                        <textarea id="adminCookieInput" rows="3" placeholder="MUSIC_U=xxxx; ..." class="input w-full text-xs font-mono"></textarea>
-                        <button id="adminPasteCookieBtn" class="btn btn--glass w-full text-sm">保存到站点 KV</button>
-                    </div>
-                </div>
-
-                <button id="adminLogoutBtn" class="btn btn--glass w-full text-sm">退出管理</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- 访客登录（本机缓存 Cookie，不写 KV） -->
-    <div id="guestModal"
-        class="fixed inset-0 z-[120] flex items-center justify-center modal-backdrop hidden opacity-0 transition-opacity duration-300">
-        <div class="modal-card w-full max-w-sm mx-4 p-6 rounded-3xl shadow-2xl transform scale-95 transition-transform duration-300">
-            <div class="flex justify-between items-center mb-5">
-                <h2 class="text-xl font-bold flex items-center"><i class="fas fa-qrcode mr-2 theme-text-primary"></i>访客登录</h2>
-                <button id="closeGuestBtn" class="w-8 h-8 rounded-full flex items-center justify-center hover:bg-black/10 transition-colors"><i class="fas fa-times"></i></button>
-            </div>
-
-            <div class="space-y-4">
+            <!-- 换号登录（本机缓存） -->
+            <div id="guestTabPane" class="space-y-4">
                 <div id="guestAccountCard" class="p-3 rounded-2xl border border-white/10 bg-white/[0.04]">
                     <div class="flex items-center gap-3">
                         <img id="guestAvatar" class="w-12 h-12 rounded-full object-cover bg-white/10 hidden" alt="">
@@ -1693,8 +1656,8 @@
                             <i class="fas fa-user text-primary-color"></i>
                         </div>
                         <div class="flex-1 min-w-0">
-                            <div id="guestNickname" class="text-sm font-bold truncate">站点默认账号</div>
-                            <div id="guestMeta" class="text-xs opacity-50 truncate">使用 KV 中的 Cookie</div>
+            <div id="guestNickname" class="text-sm font-bold truncate">站点默认账号</div>
+                            <div id="guestMeta" class="text-xs opacity-50 truncate flex items-center gap-1 min-w-0">使用站长登录的网易云</div>
                         </div>
                     </div>
                     <div id="guestCookieBanner" class="mt-3 text-xs rounded-xl px-3 py-2 bg-white/5 opacity-70">换浏览器或清除缓存后，会自动回到站点默认账号。</div>
@@ -1702,23 +1665,84 @@
 
                 <div class="space-y-2">
                     <div class="text-sm font-bold">扫码登录自己的网易云</div>
-                    <p class="text-[11px] opacity-45 leading-relaxed">授权后 Cookie 只保存在本浏览器，不会写入站点 KV。</p>
+                    <p class="text-[11px] opacity-45 leading-relaxed">只保存在本浏览器，不会改动站点默认账号。</p>
                     <div class="flex flex-col items-center gap-2 py-2">
                         <div class="w-48 h-48 rounded-2xl bg-white flex items-center justify-center overflow-hidden">
                             <img id="guestQrImg" alt="访客扫码登录" class="w-full h-full object-contain hidden">
-                            <span id="guestQrPlaceholder" class="text-xs text-black/40 px-4 text-center">点击下方按钮生成二维码</span>
+                            <span id="guestQrPlaceholder" class="text-xs text-black/40 px-4 text-center">正在生成二维码…</span>
                         </div>
-                        <div id="guestQrStatus" class="text-xs opacity-60">等待开始</div>
+                        <div id="guestQrStatus" class="text-xs opacity-60">准备中</div>
                     </div>
                     <div class="grid grid-cols-2 gap-2">
-                        <button id="guestRefreshQrBtn" class="btn btn--primary w-full text-sm">生成 / 刷新二维码</button>
-                        <button id="guestClearLocalBtn" class="btn btn--glass w-full text-sm">恢复站点默认</button>
+                        <button id="guestRefreshQrBtn" class="btn btn--primary w-full text-sm">刷新二维码</button>
+                        <button id="guestClearLocalBtn" class="btn btn--glass w-full text-sm">恢复站点账号</button>
                     </div>
-                    <div class="pt-2 space-y-2 border-t border-white/10">
-                        <div class="text-xs font-bold opacity-70">扫码被风控时：粘贴 Cookie</div>
-                        <textarea id="guestCookieInput" rows="3" placeholder="MUSIC_U=xxxx; ..." class="input w-full text-xs font-mono"></textarea>
-                        <button id="guestPasteCookieBtn" class="btn btn--glass w-full text-sm">使用此 Cookie（仅本机）</button>
+                    <details id="guestAdvancedDetails" class="pt-1">
+                        <summary class="text-xs opacity-50 cursor-pointer select-none py-1 hover:opacity-80">扫码失败？手动粘贴 Cookie</summary>
+                        <div class="mt-2 space-y-2">
+                            <textarea id="guestCookieInput" rows="3" placeholder="粘贴完整 Cookie，需包含 MUSIC_U=…" class="input w-full text-xs font-mono"></textarea>
+                            <button id="guestPasteCookieBtn" class="btn btn--glass w-full text-sm">使用此 Cookie（仅本机）</button>
+                        </div>
+                    </details>
+                </div>
+            </div>
+
+            <!-- 站点管理（ADMIN） -->
+            <div id="adminTabPane" class="hidden space-y-3">
+                <div id="adminSetupPane" class="hidden space-y-3">
+                    <p class="text-xs opacity-50 leading-relaxed">首次使用：设置一个管理密码，用于保护站点网易云登录，避免被随意改掉。</p>
+                    <input id="adminSetupPasswordInput" type="password" autocomplete="new-password" placeholder="设置管理密码（至少 4 位）" class="input w-full">
+                    <input id="adminSetupPasswordConfirm" type="password" autocomplete="new-password" placeholder="再输入一次" class="input w-full">
+                    <button id="adminSetupBtn" class="btn btn--primary w-full">保存并进入</button>
+                    <p id="adminSetupError" class="text-xs text-red-400 hidden"></p>
+                </div>
+
+                <div id="adminLoginPane" class="space-y-3">
+                    <p class="text-xs opacity-50 leading-relaxed">输入管理密码后，可更新站点默认的网易云账号。</p>
+                    <input id="adminPasswordInput" type="password" autocomplete="current-password" placeholder="管理密码" class="input w-full">
+                    <button id="adminLoginBtn" class="btn btn--primary w-full">进入管理</button>
+                    <p id="adminLoginError" class="text-xs text-red-400 hidden"></p>
+                </div>
+
+                <div id="adminPanelPane" class="hidden space-y-4">
+                    <div id="adminAccountCard" class="p-3 rounded-2xl border border-white/10 bg-white/[0.04]">
+                        <div class="flex items-center gap-3">
+                            <img id="adminAvatar" class="w-12 h-12 rounded-full object-cover bg-white/10 hidden" alt="">
+                            <div class="w-12 h-12 rounded-full bg-primary-color/15 flex items-center justify-center" id="adminAvatarFallback">
+                                <i class="fas fa-user text-primary-color"></i>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <div id="adminNickname" class="text-sm font-bold truncate">未登录</div>
+                                <div id="adminMeta" class="text-xs opacity-50 truncate flex items-center gap-1 min-w-0">正在检查登录状态…</div>
+                            </div>
+                        </div>
+                        <div id="adminCookieBanner" class="mt-3 text-xs rounded-xl px-3 py-2 bg-white/5 opacity-70"></div>
                     </div>
+
+                    <div class="space-y-2">
+                        <div class="text-sm font-bold">扫码更新站点账号</div>
+                        <p class="text-[11px] opacity-45 leading-relaxed">用网易云 App 扫码授权后，会成为所有访客默认使用的账号。</p>
+                        <div class="flex flex-col items-center gap-2 py-2">
+                            <div class="w-48 h-48 rounded-2xl bg-white flex items-center justify-center overflow-hidden">
+                                <img id="adminQrImg" alt="扫码登录" class="w-full h-full object-contain hidden">
+                                <span id="adminQrPlaceholder" class="text-xs text-black/40 px-4 text-center">点击下方按钮生成二维码</span>
+                            </div>
+                            <div id="adminQrStatus" class="text-xs opacity-60">等待开始</div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <button id="adminRefreshQrBtn" class="btn btn--primary w-full text-sm">生成 / 刷新二维码</button>
+                            <button id="adminRefreshStatusBtn" class="btn btn--glass w-full text-sm">刷新状态</button>
+                        </div>
+                        <details class="pt-1">
+                            <summary class="text-xs opacity-50 cursor-pointer select-none py-1 hover:opacity-80">扫码失败？手动粘贴 Cookie</summary>
+                            <div class="mt-2 space-y-2">
+                                <textarea id="adminCookieInput" rows="3" placeholder="粘贴完整 Cookie，需包含 MUSIC_U=…" class="input w-full text-xs font-mono"></textarea>
+                                <button id="adminPasteCookieBtn" class="btn btn--glass w-full text-sm">保存为站点账号</button>
+                            </div>
+                        </details>
+                    </div>
+
+                    <button id="adminLogoutBtn" class="btn btn--glass w-full text-sm">退出管理</button>
                 </div>
             </div>
         </div>
@@ -1787,9 +1811,30 @@
                         <i class="settings-chevron fas fa-chevron-down text-xs opacity-40 transition-transform"></i>
                     </summary>
                     <div class="px-4 pb-4 border-t border-white/5 pt-3 space-y-3 text-xs opacity-60 leading-relaxed">
-                        <p>默认 API 地址：<code class="bg-white/10 px-1.5 py-0.5 rounded">{origin}/api</code>（可通过 localStorage <code class="bg-white/10 px-1 rounded">cp_api_base</code> 覆盖）。</p>
-                        <p>网易云 Cookie 请写在 Cloudflare <strong>KV</strong> 键 <code class="bg-white/10 px-1 rounded">NETEASE_COOKIE</code>（绑定名 <code class="bg-white/10 px-1 rounded">KV</code>），不会下发到浏览器。</p>
-                        <p>「我的歌单」Tab 会调用 <code class="bg-white/10 px-1 rounded">GET /163_user_playlist</code> 展示账号歌单。</p>
+                        <p>默认 API：同域 <code class="bg-white/10 px-1.5 py-0.5 rounded">{origin}/api</code>。网易云登录请用顶栏「账号」：访客可换本机号，站长在「站点管理」配置默认账号。</p>
+                        <p>「我的歌单」会展示当前账号下的歌单。</p>
+                    </div>
+                </details>
+
+                <details class="settings-section">
+                    <summary class="flex items-center gap-3 px-4 py-3 cursor-pointer select-none">
+                        <i class="fab fa-github text-primary-color w-5 text-center"></i>
+                        <span class="flex-1 min-w-0">
+                            <span class="block text-sm font-bold">项目地址</span>
+                            <span class="block text-[10px] opacity-45">开源 · 自部署</span>
+                        </span>
+                        <i class="settings-chevron fas fa-chevron-down text-xs opacity-40 transition-transform"></i>
+                    </summary>
+                    <div class="px-4 pb-4 border-t border-white/5 pt-3 space-y-3 text-xs opacity-60 leading-relaxed">
+                        <p><strong class="opacity-90 font-bold">WyPlayer</strong> 是个人用的网易云 Web 播放器，跑在 Cloudflare Pages：搜索、播放、歌词、VIP 音质，「我的歌单」分「我创建的 / 收藏」。</p>
+                        <p>访客可扫码换本机号；站长在「站点管理」配置站点默认账号。改自 <a href="https://github.com/ChKSz/CPlayer" target="_blank" rel="noopener noreferrer" class="underline hover:opacity-100">CPlayer</a>（MIT），仅供学习自用。</p>
+                        <a href="https://github.com/yizhicn/WyPlayer" target="_blank" rel="noopener noreferrer"
+                            class="btn btn--glass w-full text-sm inline-flex items-center justify-center gap-2">
+                            <i class="fab fa-github"></i>
+                            GitHub：yizhicn/WyPlayer
+                        </a>
+                        <a href="https://wyplayer.pages.dev/" target="_blank" rel="noopener noreferrer"
+                            class="block text-center text-[11px] opacity-50 underline hover:opacity-80">在线演示 wyplayer.pages.dev</a>
                     </div>
                 </details>
             </div>
@@ -2265,8 +2310,7 @@
             initEventListeners();
             initSettingsUI();
             initUserPlaylistsUI();
-            initAdminPanel();
-            initGuestLoginPanel();
+            initAccountPanel();
             const restoredPlayback = await restoreLocalPlaybackState();
             if (!restoredPlayback) {
                 isRestoringPlaybackState = true;
@@ -2862,7 +2906,7 @@
                             <div class="empty-state" style="padding: 40px 20px;">
                                 <i class="empty-state__icon fas fa-folder-open"></i>
                                 <h3 class="empty-state__title">暂无歌单</h3>
-                                <p class="empty-state__description">请确认已绑定 KV 并写入 NETEASE_COOKIE</p>
+                                <p class="empty-state__description">站点尚未登录网易云，请打开「账号 → 站点管理」扫码</p>
                             </div>`;
                         return;
                     }
@@ -2943,46 +2987,121 @@
             adminQrSession = '';
         }
 
-        function setAccountDot(state) {
+        let headerIdentity = { state: 'unknown', source: 'kv', account: null };
+
+        /** 优先用后端解析的 vip；否则退回 vipType 粗映射 */
+        function mapVipBadge(account) {
+            const vip = account?.vip;
+            if (vip && typeof vip === 'object') {
+                return {
+                    kind: vip.kind || 'none',
+                    label: vip.label || '',
+                    icon: vip.icon || '',
+                };
+            }
+            const n = Number(account?.vipType);
+            if (!Number.isFinite(n) || n <= 0) {
+                return { kind: 'none', label: '非会员', icon: 'img/vip/vip-music-package.png' };
+            }
+            if (n === 10) return { kind: 'package', label: '音乐包', icon: 'img/vip/vip-music-package.png' };
+            if (n === 11 || n === 110) return { kind: 'vip', label: '黑胶VIP', icon: 'img/vip/vip-heijiao.png' };
+            return { kind: 'vip', label: '会员', icon: 'img/vip/vip-heijiao.png' };
+        }
+
+        function formatAccountMetaHtml(prefix, account) {
+            const uid = account?.userId || '-';
+            const vip = mapVipBadge(account);
+            if (vip.kind === 'none') {
+                const badge = vip.icon
+                    ? `<img src="${escapeHtml(vip.icon)}" alt="非会员" class="vip-badge-img" title="非会员">`
+                    : '';
+                return `${escapeHtml(prefix)} · UID ${escapeHtml(String(uid))}${badge ? ` · ${badge}` : ''}`;
+            }
+            const badge = vip.icon
+                ? `<img src="${escapeHtml(vip.icon)}" alt="${escapeHtml(vip.label)}" class="vip-badge-img" title="${escapeHtml(vip.label)}">`
+                : '';
+            // VIP/SVIP 官方角标已自带文字；音乐包需要旁边补文案
+            const needLabel = vip.kind === 'package' || !vip.icon;
+            return `${escapeHtml(prefix)} · UID ${escapeHtml(String(uid))}${badge ? ` · ${badge}` : ''}${needLabel ? ` · <span>${escapeHtml(vip.label)}</span>` : ''}`;
+        }
+
+        function updateHeaderIdentity(partial) {
+            if (partial) headerIdentity = { ...headerIdentity, ...partial };
+            const { state, source, account } = headerIdentity;
             const dot = document.getElementById('accountStatusDot');
             const icon = document.getElementById('accountBtnIcon');
-            if (!dot) return;
-            dot.className = 'absolute -right-0.5 -top-0.5 w-2.5 h-2.5 rounded-full border border-black/20';
-            if (state === 'ok') {
-                dot.classList.add('bg-green-400');
-                if (icon) icon.className = 'fas fa-user-shield';
-            } else if (state === 'expired') {
-                dot.classList.add('bg-red-400');
-                if (icon) icon.className = 'fas fa-user-shield';
-            } else if (state === 'missing') {
-                dot.classList.add('bg-amber-400');
-                if (icon) icon.className = 'fas fa-user-shield';
+            const nameEl = document.getElementById('headerAccountName');
+            const hintEl = document.getElementById('headerAccountHint');
+            const avatar = document.getElementById('headerAccountAvatar');
+            const avatarFb = document.getElementById('headerAccountAvatarFb');
+            const isLocal = source === 'local';
+
+            if (dot) {
+                dot.className = 'absolute -right-0.5 -top-0.5 w-2.5 h-2.5 rounded-full border border-black/20';
+                if (state === 'local' || (state === 'ok' && isLocal)) dot.classList.add('bg-sky-400');
+                else if (state === 'ok') dot.classList.add('bg-green-400');
+                else if (state === 'expired') dot.classList.add('bg-red-400');
+                else if (state === 'missing') dot.classList.add('bg-amber-400');
+                else dot.classList.add('bg-white/40');
+            }
+
+            const nick = account?.nickname || '';
+            const btn = document.getElementById('accountEntryBtn');
+            if (nameEl) {
+                if (nick) nameEl.textContent = nick;
+                else if (state === 'missing') nameEl.textContent = '未登录';
+                else if (state === 'expired') nameEl.textContent = '已失效';
+                else nameEl.textContent = '账号';
+            }
+            if (btn) {
+                btn.title = nick || '账号';
+            }
+            if (hintEl) {
+                if (state === 'missing') hintEl.textContent = '点击配置';
+                else if (state === 'expired') hintEl.textContent = isLocal ? '本机号失效' : '站点号失效';
+                else if (nick || state === 'ok' || state === 'local') hintEl.textContent = isLocal ? '正在用本机号' : '正在用站点号';
+                else hintEl.textContent = '点击登录';
+            }
+            if (icon) {
+                icon.className = isLocal ? 'fas fa-user-check text-sm theme-text-primary'
+                    : (state === 'missing' || state === 'expired' ? 'fas fa-user text-sm theme-text-primary'
+                        : 'fas fa-user text-sm theme-text-primary');
+            }
+            if (account?.avatarUrl && avatar) {
+                avatar.src = account.avatarUrl;
+                avatar.classList.remove('hidden');
+                if (avatarFb) avatarFb.classList.add('hidden');
             } else {
-                dot.classList.add('bg-white/40');
-                if (icon) icon.className = 'fas fa-user-shield';
+                if (avatar) avatar.classList.add('hidden');
+                if (avatarFb) avatarFb.classList.remove('hidden');
             }
         }
 
+        function setAccountDot(state) {
+            updateHeaderIdentity({ state });
+        }
+
         function setGuestDot(state) {
-            const dot = document.getElementById('guestStatusDot');
-            const icon = document.getElementById('guestLoginBtnIcon');
-            if (!dot) return;
-            dot.className = 'absolute -right-0.5 -top-0.5 w-2.5 h-2.5 rounded-full border border-black/20';
-            if (state === 'local') {
-                dot.classList.add('bg-sky-400');
-                if (icon) icon.className = 'fas fa-user-check';
-            } else if (state === 'ok') {
-                dot.classList.add('bg-green-400');
-                if (icon) icon.className = 'fas fa-qrcode';
-            } else if (state === 'expired') {
-                dot.classList.add('bg-red-400');
-                if (icon) icon.className = 'fas fa-qrcode';
-            } else if (state === 'missing') {
-                dot.classList.add('bg-amber-400');
-                if (icon) icon.className = 'fas fa-qrcode';
+            const source = state === 'local' ? 'local' : (state === 'ok' ? 'kv' : headerIdentity.source);
+            updateHeaderIdentity({ state, source });
+        }
+
+        function switchAccountTab(tab) {
+            const guestTab = document.getElementById('accountTabGuest');
+            const adminTab = document.getElementById('accountTabAdmin');
+            const guestPane = document.getElementById('guestTabPane');
+            const adminPane = document.getElementById('adminTabPane');
+            const isGuest = tab !== 'admin';
+            guestTab?.classList.toggle('account-tab--active', isGuest);
+            guestTab?.classList.toggle('opacity-55', !isGuest);
+            adminTab?.classList.toggle('account-tab--active', !isGuest);
+            adminTab?.classList.toggle('opacity-55', isGuest);
+            guestPane?.classList.toggle('hidden', !isGuest);
+            adminPane?.classList.toggle('hidden', isGuest);
+            if (isGuest) {
+                stopAdminQrPoll();
             } else {
-                dot.classList.add('bg-white/40');
-                if (icon) icon.className = 'fas fa-qrcode';
+                stopGuestQrPoll();
             }
         }
 
@@ -2995,33 +3114,30 @@
             if (!banner || !nick || !meta) return;
 
             if (!status?.configured) {
-                setAccountDot('missing');
-                nick.textContent = '未配置 Cookie';
-                meta.textContent = '请扫码登录网易云账号';
+                nick.textContent = '站点尚未登录';
+                meta.textContent = '请扫码登录网易云';
                 banner.className = 'mt-3 text-xs rounded-xl px-3 py-2 bg-amber-500/15 text-amber-200';
-                banner.textContent = status?.message || 'KV 中还没有 NETEASE_COOKIE';
+                banner.textContent = status?.message || '还没有站点默认账号，扫码后所有访客都会用这个号听歌。';
                 if (avatar) avatar.classList.add('hidden');
                 if (avatarFb) avatarFb.classList.remove('hidden');
                 return;
             }
 
             if (status.expired || !status.valid) {
-                setAccountDot('expired');
-                nick.textContent = 'Cookie 已失效';
+                nick.textContent = '站点登录已失效';
                 meta.textContent = '请重新扫码授权';
                 banner.className = 'mt-3 text-xs rounded-xl px-3 py-2 bg-red-500/15 text-red-200';
-                banner.textContent = status?.message || '网易云登录态失效，歌单/VIP 将不可用';
+                banner.textContent = status?.message || '登录态失效后，歌单和 VIP 音质可能不可用。';
                 if (avatar) avatar.classList.add('hidden');
                 if (avatarFb) avatarFb.classList.remove('hidden');
                 return;
             }
 
             const account = status.account || {};
-            setAccountDot('ok');
             nick.textContent = account.nickname || `用户 ${account.userId || ''}`;
-            meta.textContent = `UID ${account.userId || '-'} · VIP ${account.vipType ?? '-'}`;
+            meta.innerHTML = formatAccountMetaHtml('站点默认', account);
             banner.className = 'mt-3 text-xs rounded-xl px-3 py-2 bg-green-500/15 text-green-200';
-            banner.textContent = 'Cookie 有效，已可用于「我的歌单」与 VIP 音质';
+            banner.textContent = '站点账号正常，访客可听歌单与 VIP 音质。';
             if (account.avatarUrl && avatar) {
                 avatar.src = account.avatarUrl;
                 avatar.classList.remove('hidden');
@@ -3067,15 +3183,15 @@
             return json.data || {};
         }
 
-        async function openAdminModal() {
-            openSimpleModal(document.getElementById('adminModal'));
+        async function openAdminTab() {
+            switchAccountTab('admin');
             try {
                 const boot = await fetchAdminBootstrap();
                 if (!boot.hasKv) {
                     showAdminSetupPane();
                     const err = document.getElementById('adminSetupError');
                     if (err) {
-                        err.textContent = '未绑定 KV：请到 Pages → 设置 → 绑定，变量名填 KV 后重新部署';
+                        err.textContent = '站点存储未就绪：请在 Cloudflare Pages 绑定名为 KV 的存储后重新部署（详见 README）';
                         err.classList.remove('hidden');
                     }
                     return;
@@ -3210,9 +3326,9 @@
                             if (statusEl) statusEl.textContent = data.message || '需要验证，请刷新二维码';
                             stopAdminQrPoll();
                         } else if (data.code === 803) {
-                            if (statusEl) statusEl.textContent = '授权成功，Cookie 已写入 KV';
+                            if (statusEl) statusEl.textContent = '授权成功，站点账号已更新';
                             stopAdminQrPoll();
-                            showToast('网易云登录成功');
+                            showToast('站点网易云登录成功');
                             userPlaylistsCache = null;
                             if (data.account) {
                                 renderAdminAccount({ configured: true, valid: true, expired: false, account: data.account });
@@ -3230,19 +3346,30 @@
             }
         }
 
-        function initAdminPanel() {
-            const accountBtn = document.getElementById('accountBtn');
-            accountBtn?.addEventListener('click', () => openAdminModal());
-            document.getElementById('closeAdminBtn')?.addEventListener('click', () => {
-                stopAdminQrPoll();
-                closeSimpleModal(document.getElementById('adminModal'));
+        function closeAccountModal() {
+            stopGuestQrPoll();
+            stopAdminQrPoll();
+            closeSimpleModal(document.getElementById('accountModal'));
+        }
+
+        async function openAccountModal(tab = 'guest') {
+            openSimpleModal(document.getElementById('accountModal'));
+            if (tab === 'admin') {
+                await openAdminTab();
+            } else {
+                await openGuestTab();
+            }
+        }
+
+        function initAccountPanel() {
+            document.getElementById('accountEntryBtn')?.addEventListener('click', () => openAccountModal('guest'));
+            document.getElementById('closeAccountBtn')?.addEventListener('click', () => closeAccountModal());
+            document.getElementById('accountModal')?.addEventListener('click', (e) => {
+                if (e.target?.id === 'accountModal') closeAccountModal();
             });
-            document.getElementById('adminModal')?.addEventListener('click', (e) => {
-                if (e.target?.id === 'adminModal') {
-                    stopAdminQrPoll();
-                    closeSimpleModal(document.getElementById('adminModal'));
-                }
-            });
+            document.getElementById('accountTabGuest')?.addEventListener('click', () => openGuestTab());
+            document.getElementById('accountTabAdmin')?.addEventListener('click', () => openAdminTab());
+
             document.getElementById('adminLoginBtn')?.addEventListener('click', () => adminLogin());
             document.getElementById('adminPasswordInput')?.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter') adminLogin();
@@ -3255,7 +3382,11 @@
             document.getElementById('adminPasteCookieBtn')?.addEventListener('click', async () => {
                 const cookie = (document.getElementById('adminCookieInput')?.value || '').trim();
                 if (!cookie) {
-                    showToast('请粘贴包含 MUSIC_U 的 Cookie', true);
+                    showToast('请先粘贴 Cookie（需含 MUSIC_U=）', true);
+                    return;
+                }
+                if (!/MUSIC_U\s*=/i.test(cookie)) {
+                    showToast('内容里找不到 MUSIC_U=，请粘贴完整登录 Cookie', true);
                     return;
                 }
                 try {
@@ -3265,7 +3396,7 @@
                     });
                     const json = await res.json();
                     if (!res.ok || json.code !== 200) throw new Error(json.message || '保存失败');
-                    showToast('Cookie 已写入 KV');
+                    showToast('站点账号已保存');
                     renderAdminAccount(json.data);
                 } catch (e) {
                     showToast(e.message || '保存失败', true);
@@ -3288,28 +3419,60 @@
                 showToast('已退出管理');
             });
 
-            // 启动时：账号管理角标看 KV；访客角标看本机 Cookie / 站点默认
+            document.getElementById('guestRefreshQrBtn')?.addEventListener('click', () => startGuestQr());
+            document.getElementById('guestClearLocalBtn')?.addEventListener('click', () => clearGuestLocalLogin());
+            document.getElementById('guestPasteCookieBtn')?.addEventListener('click', async () => {
+                const cookie = (document.getElementById('guestCookieInput')?.value || '').trim();
+                if (!cookie) {
+                    showToast('请先粘贴 Cookie，或直接扫上方二维码', true);
+                    return;
+                }
+                if (!/MUSIC_U\s*=/i.test(cookie)) {
+                    showToast('内容里找不到 MUSIC_U=，请粘贴完整登录 Cookie', true);
+                    return;
+                }
+                setLocalNeteaseCookie(cookie);
+                userPlaylistsCache = null;
+                showToast('已保存到本机');
+                try {
+                    await refreshGuestStatus();
+                } catch (e) {
+                    showToast(e.message || 'Cookie 无效', true);
+                }
+            });
+
             Promise.all([
                 fetchAdminBootstrap().catch(() => null),
                 musicService.apiFetch('/me').then(r => r).catch(() => null)
             ]).then(async ([boot, meRes]) => {
-                if (boot && !boot.hasAdmin) setAccountDot('missing');
-                else if (boot && !boot.hasCookie) setAccountDot('missing');
-                else if (boot?.hasCookie) setAccountDot('ok');
-                else setAccountDot('unknown');
+                let account = null;
+                let source = getLocalNeteaseCookie() ? 'local' : 'kv';
+                let state = 'unknown';
 
-                if (getLocalNeteaseCookie()) {
-                    if (meRes?.ok) setGuestDot('local');
-                    else if (meRes?.status === 401) setGuestDot('expired');
-                    else setGuestDot('unknown');
-                } else if (meRes?.ok) setGuestDot('ok');
-                else if (meRes?.status === 401) setGuestDot('expired');
-                else if (meRes?.status === 503 || (boot && !boot.hasCookie)) setGuestDot('missing');
-                else setGuestDot('unknown');
+                if (meRes?.ok) {
+                    try {
+                        const json = await meRes.json();
+                        account = json.data || null;
+                        source = account?.source || source;
+                        state = source === 'local' ? 'local' : 'ok';
+                    } catch (_) {
+                        state = source === 'local' ? 'local' : 'ok';
+                    }
+                } else if (getLocalNeteaseCookie()) {
+                    state = meRes?.status === 401 ? 'expired' : 'unknown';
+                } else if (meRes?.status === 401) {
+                    state = 'expired';
+                } else if (meRes?.status === 503 || (boot && !boot.hasCookie)) {
+                    state = 'missing';
+                } else if (boot && !boot.hasAdmin) {
+                    state = 'missing';
+                }
+
+                updateHeaderIdentity({ state, source, account });
             });
         }
 
-        // ================= 访客登录（本机 Cookie，不写 KV） =================
+        // ================= 访客登录（本机 Cookie，不改站点默认） =================
         let guestQrTimer = null;
         let guestQrKey = '';
         let guestQrSession = '';
@@ -3333,27 +3496,29 @@
 
             const isLocal = source === 'local' || Boolean(getLocalNeteaseCookie());
             if (!account) {
-                nick.textContent = isLocal ? '本机 Cookie 无效' : '站点默认未配置';
-                meta.textContent = isLocal ? '请重新扫码，或恢复站点默认' : '请先在账号管理中扫码写入 KV';
+                nick.textContent = isLocal ? '本机登录已失效' : '站点尚未登录';
+                meta.textContent = isLocal ? '请重新扫码，或恢复站点账号' : '请到「站点管理」扫码登录';
                 banner.className = 'mt-3 text-xs rounded-xl px-3 py-2 bg-amber-500/15 text-amber-200';
                 banner.textContent = isLocal
-                    ? '本机登录态失效。清除后会回到 KV 站点账号。'
-                    : '当前使用站点 KV Cookie；扫码可临时切换为自己的账号。';
-                setGuestDot(isLocal ? 'expired' : 'missing');
+                    ? '本机登录失效。点「恢复站点账号」可回到站长配置的默认号。'
+                    : '当前没有可用账号。站长可在「站点管理」扫码；你也可以先扫码登录自己的号。';
+                updateHeaderIdentity({ state: isLocal ? 'expired' : 'missing', source: isLocal ? 'local' : 'kv', account: null });
                 if (avatar) avatar.classList.add('hidden');
                 if (avatarFb) avatarFb.classList.remove('hidden');
                 return;
             }
 
             nick.textContent = account.nickname || `用户 ${account.userId || ''}`;
-            meta.textContent = isLocal
-                ? `本机缓存 · UID ${account.userId || '-'} · VIP ${account.vipType ?? '-'}`
-                : `站点默认 · UID ${account.userId || '-'} · VIP ${account.vipType ?? '-'}`;
+            meta.innerHTML = formatAccountMetaHtml(isLocal ? '本机号' : '站点号', account);
             banner.className = `mt-3 text-xs rounded-xl px-3 py-2 ${isLocal ? 'bg-sky-500/15 text-sky-200' : 'bg-green-500/15 text-green-200'}`;
             banner.textContent = isLocal
-                ? '正在使用本机扫码登录。换浏览器或清缓存后会回到站点默认账号。'
-                : '正在使用站点 KV Cookie。可扫码登录自己的号（仅本机有效）。';
-            setGuestDot(isLocal ? 'local' : 'ok');
+                ? '正在用本机扫码登录。换浏览器或清缓存后会回到站点默认账号。'
+                : '正在用站点默认账号。扫码可临时换成自己的号（仅本机有效）。';
+            updateHeaderIdentity({
+                state: isLocal ? 'local' : 'ok',
+                source: isLocal ? 'local' : 'kv',
+                account
+            });
             if (account.avatarUrl && avatar) {
                 avatar.src = account.avatarUrl;
                 avatar.classList.remove('hidden');
@@ -3378,13 +3543,14 @@
             return json.data;
         }
 
-        async function openGuestModal() {
-            openSimpleModal(document.getElementById('guestModal'));
+        async function openGuestTab() {
+            switchAccountTab('guest');
             try {
                 await refreshGuestStatus();
-            } catch (e) {
+            } catch (_) {
                 renderGuestAccount(null, getLocalNeteaseCookie() ? 'local' : 'kv');
             }
+            startGuestQr();
         }
 
         async function startGuestQr() {
@@ -3430,9 +3596,9 @@
                                 return;
                             }
                             setLocalNeteaseCookie(data.cookie);
-                            if (statusEl) statusEl.textContent = '登录成功，已缓存在本浏览器';
+                            if (statusEl) statusEl.textContent = '登录成功，已保存在本浏览器';
                             stopGuestQrPoll();
-                            showToast('访客登录成功（仅本机）');
+                            showToast('已切换为本机账号');
                             userPlaylistsCache = null;
                             if (data.account) renderGuestAccount(data.account, 'local');
                             else await refreshGuestStatus();
@@ -3453,37 +3619,7 @@
             userPlaylistsCache = null;
             showToast('已恢复站点默认账号');
             refreshGuestStatus().catch(() => renderGuestAccount(null, 'kv'));
-        }
-
-        function initGuestLoginPanel() {
-            document.getElementById('guestLoginBtn')?.addEventListener('click', () => openGuestModal());
-            document.getElementById('closeGuestBtn')?.addEventListener('click', () => {
-                stopGuestQrPoll();
-                closeSimpleModal(document.getElementById('guestModal'));
-            });
-            document.getElementById('guestModal')?.addEventListener('click', (e) => {
-                if (e.target?.id === 'guestModal') {
-                    stopGuestQrPoll();
-                    closeSimpleModal(document.getElementById('guestModal'));
-                }
-            });
-            document.getElementById('guestRefreshQrBtn')?.addEventListener('click', () => startGuestQr());
-            document.getElementById('guestClearLocalBtn')?.addEventListener('click', () => clearGuestLocalLogin());
-            document.getElementById('guestPasteCookieBtn')?.addEventListener('click', async () => {
-                const cookie = (document.getElementById('guestCookieInput')?.value || '').trim();
-                if (!/MUSIC_U\s*=/i.test(cookie)) {
-                    showToast('Cookie 需包含 MUSIC_U', true);
-                    return;
-                }
-                setLocalNeteaseCookie(cookie);
-                userPlaylistsCache = null;
-                showToast('已保存到本机');
-                try {
-                    await refreshGuestStatus();
-                } catch (e) {
-                    showToast(e.message || 'Cookie 无效', true);
-                }
-            });
+            startGuestQr();
         }
 
         // ================= 歌曲上下文菜单（桌面右键 / 移动长按） =================

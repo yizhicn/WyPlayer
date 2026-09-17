@@ -445,7 +445,7 @@ async function registerAnonymous() {
 async function saveQrSession(env, key, cookie) {
   const kv = getKv(env);
   if (!kv) return false;
-  await kv.put(`${QR_SESSION_KV_PREFIX}${key}`, cookie, { expirationTtl: 600 });
+  await kv.put(`${QR_SESSION_KV_PREFIX}${key}`, cookie, { expirationTtl: 300 });
   return true;
 }
 
@@ -694,17 +694,106 @@ const LEVEL_FALLBACKS = {
   standard: ['standard'],
 };
 
+function vipStillActive(entry, now) {
+  if (!entry) return false;
+  const expire = Number(entry.expireTime);
+  if (!Number.isFinite(expire) || expire <= 0) return false;
+  return expire > now;
+}
+
+async function fetchVipInfo(cookie) {
+  try {
+    const res = await fetch('https://music.163.com/api/music-vip-membership/client/vip/info', {
+      method: 'POST',
+      headers: {
+        ...weapiHeaders(cookie),
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({ userId: '' }).toString(),
+    });
+    if (!res.ok) return null;
+    const json = await res.json();
+    return json?.data || null;
+  } catch (_) {
+    return null;
+  }
+}
+
+/** 与官网评论角标优先级一致：SVIP > 等级黑胶VIP > 年卡 > 黑胶VIP > 音乐包；角标一律用本地 img/vip */
+function resolveVipMeta(vipInfo, vipType) {
+  const now = Number(vipInfo?.now) || Date.now();
+  const level = Number(vipInfo?.redVipLevel) || 0;
+  const vipLevelIcon = level >= 1 && level <= 7 ? `img/vip/vip-lv${level}.png` : 'img/vip/vip-heijiao.png';
+  // 无等级时统一用普通黑胶 VIP 角标（vip-heijiao.png）
+  const svipLevelIcon = level >= 1 && level <= 7 ? `img/vip/vip-svip-lv${level}.png` : 'img/vip/vip-heijiao.png';
+
+  if (vipStillActive(vipInfo?.redplus, now) && Number(vipInfo.redplus.vipCode) === 300) {
+    return {
+      kind: 'svip',
+      label: level >= 1 ? `黑胶SVIP ${level}` : '黑胶SVIP',
+      level,
+      icon: svipLevelIcon,
+    };
+  }
+
+  if (vipStillActive(vipInfo?.associator, now)) {
+    if (level >= 1) {
+      return {
+        kind: 'vip',
+        label: `黑胶VIP ${level}`,
+        level,
+        icon: vipLevelIcon,
+      };
+    }
+    return {
+      kind: 'vip',
+      label: '黑胶VIP',
+      level: 0,
+      icon: 'img/vip/vip-heijiao.png',
+    };
+  }
+
+  if (Number(vipInfo?.redVipAnnualCount) >= 1) {
+    return {
+      kind: 'vip',
+      label: '黑胶VIP',
+      level,
+      icon: vipLevelIcon,
+    };
+  }
+
+  if (vipStillActive(vipInfo?.musicPackage, now)) {
+    return {
+      kind: 'package',
+      label: '音乐包',
+      level: 0,
+      icon: 'img/vip/vip-music-package.png',
+    };
+  }
+
+  const n = Number(vipType);
+  if (n === 10) return { kind: 'package', label: '音乐包', level: 0, icon: 'img/vip/vip-music-package.png' };
+  if (n === 11 || n === 110) return { kind: 'vip', label: '黑胶VIP', level: 0, icon: 'img/vip/vip-heijiao.png' };
+  if (Number.isFinite(n) && n > 0) return { kind: 'vip', label: '会员', level: 0, icon: 'img/vip/vip-heijiao.png' };
+  // 非会员：用音乐包角标占位（无文字「非会员」）
+  return { kind: 'none', label: '非会员', level: 0, icon: 'img/vip/vip-music-package.png' };
+}
+
 export async function getAccount(env, cookieOverride = '') {
   const cookie = await getCookie(env, cookieOverride);
   const data = await postWeapi('/weapi/w/nuser/account/get', {}, cookie);
   const profile = data?.profile || data?.account;
   const userId = data?.profile?.userId || data?.account?.id;
   if (!userId) throw new ApiError(401, 'Cookie 无效或已过期，请重新扫码登录');
+  const vipType = data?.profile?.vipType ?? null;
+  const vipInfo = await fetchVipInfo(cookie);
+  const vip = resolveVipMeta(vipInfo, vipType);
   return {
     userId,
     nickname: data?.profile?.nickname || '',
     avatarUrl: httpsUrl(data?.profile?.avatarUrl || ''),
-    vipType: data?.profile?.vipType ?? null,
+    vipType,
+    vip,
   };
 }
 
