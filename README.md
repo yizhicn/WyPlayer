@@ -4,6 +4,8 @@
 
 改自 [CPlayer](https://github.com/ChKSz/CPlayer)（MIT）。
 
+**在线体验：** https://wyplayer.pages.dev/
+
 - 搜索、播放、歌词（支持 VIP 音质）
 - 「我的歌单」：分成 **我创建的** / **收藏歌单**
 - Cookie 存在 Cloudflare **KV**（可扫码更新）
@@ -35,8 +37,6 @@ npx wrangler pages deploy . --project-name=wyplayer
 
 - 第一次会提示创建项目，选 **Create a new project**，回车即可
 - 成功后会得到类似地址：`https://wyplayer-xxxxx.pages.dev`
-- 若已有旧项目名（如 `cplayer`），把命令里的名字改成你的即可
-
 ---
 
 ## 二、绑定 KV（必做）
@@ -63,6 +63,8 @@ Cloudflare → **存储和数据库** → **KV** → 创建
 ```bash
 npx wrangler pages deploy . --project-name=wyplayer
 ```
+
+（`wyplayer` 可改成你自己的项目名。）
 
 ### 3）在 KV 里写什么
 
