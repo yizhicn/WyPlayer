@@ -2285,6 +2285,85 @@
             return currentIndex <= 0 ? playlist.length - 1 : currentIndex - 1;
         }
 
+        function playlistSongIdAt(index) {
+            const song = playlist[index];
+            if (song == null) return null;
+            return typeof song === 'object' ? song.id : song;
+        }
+
+        /** 无版权 / 下架自动跳过：记录本轮已失败的 id，避免死循环 */
+        let playFailSkipIds = new Set();
+        let playFailSkipTimer = 0;
+
+        function clearPlayFailSkipState() {
+            playFailSkipIds.clear();
+            if (playFailSkipTimer) {
+                clearTimeout(playFailSkipTimer);
+                playFailSkipTimer = 0;
+            }
+        }
+
+        /** 自动跳过时不用单曲循环卡在同一首，按顺序/随机找下一首未失败的 */
+        function getSkipNextIndex() {
+            if (!playlist.length) return -1;
+            if (playMode === 'random') {
+                const candidates = [];
+                for (let i = 0; i < playlist.length; i++) {
+                    const sid = playlistSongIdAt(i);
+                    if (sid == null) continue;
+                    if (!playFailSkipIds.has(String(sid))) candidates.push(i);
+                }
+                if (!candidates.length) return -1;
+                return candidates[Math.floor(Math.random() * candidates.length)];
+            }
+            const start = currentIndex < 0 ? -1 : currentIndex;
+            for (let step = 1; step <= playlist.length; step++) {
+                const idx = (start + step) % playlist.length;
+                const sid = playlistSongIdAt(idx);
+                if (sid == null) continue;
+                if (!playFailSkipIds.has(String(sid))) return idx;
+            }
+            return -1;
+        }
+
+        function skipUnavailableAndPlayNext(failedId, toastMsg) {
+            if (!playlist.length) return;
+            if (failedId != null && failedId !== '') {
+                const key = String(failedId);
+                // 同一首失败只跳一次，避免 API 失败 + audio error 双触发
+                if (playFailSkipIds.has(key) && playFailSkipTimer) return;
+                playFailSkipIds.add(key);
+            }
+            if (playFailSkipIds.size >= playlist.length) {
+                clearPlayFailSkipState();
+                showToast('列表中暂无可用歌曲', true);
+                try { audio.pause(); } catch (_) { /* ignore */ }
+                onPlayPause();
+                return;
+            }
+            const nextIdx = getSkipNextIndex();
+            if (nextIdx < 0) {
+                clearPlayFailSkipState();
+                showToast('列表中暂无可用歌曲', true);
+                try { audio.pause(); } catch (_) { /* ignore */ }
+                onPlayPause();
+                return;
+            }
+            showToast(toastMsg || '无版权或已下架，已自动跳过');
+            currentIndex = nextIdx;
+            const songId = playlistSongIdAt(currentIndex);
+            persistCurrentPlaybackState();
+            highlightCurrentSong();
+            if (mobileUI && mobileUI.activeSheetTab === 'playlist') {
+                mobileUI.loadPlaylist();
+            }
+            if (playFailSkipTimer) clearTimeout(playFailSkipTimer);
+            playFailSkipTimer = setTimeout(() => {
+                playFailSkipTimer = 0;
+                if (songId != null) loadAndPlaySong(songId);
+            }, 280);
+        }
+
         // ================= 音质分级识别 =================
         function inferQualityLevel(url, bitrate) {
             const numericBitrate = Number(bitrate) || 0;
@@ -2484,6 +2563,16 @@
             audio.addEventListener('play', onPlayStart);
             audio.addEventListener('pause', onPlayPause);
             audio.addEventListener('ended', handleSongEnd);
+            audio.addEventListener('error', () => {
+                // 拿到了地址但 CDN / 资源实际不可播时，同样自动跳过
+                const failedId = desiredSongId ?? currentPlayingSongId;
+                if (failedId == null) return;
+                if (!audio.src && !audio.currentSrc) return;
+                const inPlaylist = playlist.some(p => String(p.id || p) === String(failedId));
+                if (inPlaylist && playlist.length > 1) {
+                    skipUnavailableAndPlayNext(failedId, '音源无法播放，已自动跳过');
+                }
+            });
             audio.addEventListener('loadedmetadata', () => {
                 dom.totalTime.textContent = formatTime(audio.duration);
             });
@@ -4057,6 +4146,7 @@
 
         function onPlayStart() {
             isPlaying = true;
+            clearPlayFailSkipState();
             dom.playPauseBtn.innerHTML = '<i class="fas fa-pause text-2xl text-on-primary-color"></i>';
             dom.albumArtWrapper.classList.add('playing');
             if (mobileUI) mobileUI.updatePlayState(true); // Mobile
@@ -4479,8 +4569,13 @@
                 if (error.name === 'AbortError' || !isSongRequestCurrent(request.token)) return;
                 console.error(error);
                 if (currentSongData) updateQualityBadge(currentSongData);
-                showToast('无法播放该歌(版权限制或接口无响应)', true);
                 if (mobileUI) mobileUI.closeSheet();
+                const inPlaylist = playlist.some(p => String(p.id || p) === String(id));
+                if (inPlaylist && playlist.length > 1) {
+                    skipUnavailableAndPlayNext(id, '无版权或已下架，已自动跳过');
+                } else {
+                    showToast('无法播放该歌(版权限制或接口无响应)', true);
+                }
             } finally {
                 if (loaderRequestToken === request.token) {
                     if (dom.desktopLoaderOverlay) dom.desktopLoaderOverlay.classList.add('opacity-0');
@@ -5216,6 +5311,7 @@
         // Expose functions globally for Mobile UI
         window.playSongAtIndex = (index) => {
             if (index < 0 || index >= playlist.length) return;
+            clearPlayFailSkipState();
             currentIndex = index; // Sync with global variable
             // currentSongIndex = index; // Removed if not defined
 
@@ -5254,6 +5350,7 @@
 
         function playNextSong() {
             if (!playlist.length) return;
+            clearPlayFailSkipState();
             // Fix: 首次播放时（currentIndex === -1），直接从第一首开
             if (currentIndex === -1) {
                 currentIndex = 0;
@@ -5268,6 +5365,7 @@
 
         function playPreviousSong() {
             if (!playlist.length) return;
+            clearPlayFailSkipState();
             // Fix: 首次播放时（currentIndex === -1），直接从第一首开
             if (currentIndex === -1) {
                 currentIndex = 0;

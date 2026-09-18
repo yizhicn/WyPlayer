@@ -1,4 +1,4 @@
-const CACHE_NAME = 'wyplayer-v27';
+const CACHE_NAME = 'wyplayer-v28';
 
 // 核心资源 - 安装时缓存
 const CORE_ASSETS = [
