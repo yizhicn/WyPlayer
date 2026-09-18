@@ -41,6 +41,14 @@ function getKv(env) {
 }
 
 /**
+ * KV Cookie 的 isolate 级内存缓存：
+ * 同一 Worker 实例 60 秒内复用，省一次 KV 读取（更快、少占 KV 读额度）。
+ * saveNeteaseCookie 时立即刷新缓存。
+ */
+let kvCookieCache = { value: null, ts: 0 };
+const KV_COOKIE_CACHE_TTL_MS = 60 * 1000;
+
+/**
  * Resolve cookie for API calls.
  * @param {string} [override] - visitor cookie from request header (local cache only)
  */
@@ -48,12 +56,20 @@ export async function getCookie(env, override = '') {
   const fromClient = normalizeCookie(override);
   if (fromClient && /MUSIC_U\s*=/i.test(fromClient)) return fromClient;
 
+  const now = Date.now();
+  if (kvCookieCache.value && now - kvCookieCache.ts < KV_COOKIE_CACHE_TTL_MS) {
+    return kvCookieCache.value;
+  }
+
   const kv = getKv(env);
   if (kv) {
     try {
       const fromKv = await kv.get(COOKIE_KV_KEY);
       const normalized = normalizeCookie(fromKv);
-      if (normalized) return normalized;
+      if (normalized) {
+        kvCookieCache = { value: normalized, ts: now };
+        return normalized;
+      }
     } catch (error) {
       console.warn('读取 KV Cookie 失败:', error?.message || error);
     }
@@ -625,6 +641,7 @@ export async function saveNeteaseCookie(env, cookie) {
     throw new ApiError(400, 'Cookie 无效：缺少 MUSIC_U');
   }
   await kv.put(COOKIE_KV_KEY, normalized);
+  kvCookieCache = { value: normalized, ts: Date.now() };
   return normalized;
 }
 
@@ -905,9 +922,8 @@ export async function getSongUrl(env, id, level = 'jymaster', cookieOverride = '
   ).catch(() => null);
 
   const levels = LEVEL_FALLBACKS[level] || LEVEL_FALLBACKS.exhigh;
-  let last = null;
-  let urlPayload = null;
-  for (const lv of levels) {
+
+  const fetchLevel = async (lv) => {
     const data = await postEapi(
       '/api/song/enhance/player/url/v1',
       {
@@ -917,19 +933,41 @@ export async function getSongUrl(env, id, level = 'jymaster', cookieOverride = '
       },
       cookie
     );
-    const item = Array.isArray(data?.data) ? data.data[0] : null;
-    if (item) last = item;
+    return Array.isArray(data?.data) ? data.data[0] : null;
+  };
+
+  const toPayload = (item, lv) => {
     const url = item?.uf?.url || item?.url || '';
-    if (url) {
-      urlPayload = {
-        id: Number(songId),
-        url: httpsUrl(url),
-        level: item.level || lv,
-        br: item.br || 0,
-        size: item.size || 0,
-        type: item.type || '',
-      };
-      break;
+    if (!url) return null;
+    return {
+      id: Number(songId),
+      url: httpsUrl(url),
+      level: item.level || lv,
+      br: item.br || 0,
+      size: item.size || 0,
+      type: item.type || '',
+    };
+  };
+
+  // 先请求目标音质（绝大多数命中，只 1 次上游请求）；
+  // 未命中时并行请求其余降级档位，按优先级取第一个可用，避免逐级串行等待。
+  let last = null;
+  let urlPayload = null;
+  try {
+    const item = await fetchLevel(levels[0]);
+    if (item) last = item;
+    urlPayload = toPayload(item, levels[0]);
+  } catch (_) { /* 继续走降级 */ }
+
+  if (!urlPayload && levels.length > 1) {
+    const rest = await Promise.all(
+      levels.slice(1).map((lv) => fetchLevel(lv).then((item) => ({ lv, item })).catch(() => null))
+    );
+    for (const r of rest) {
+      if (!r?.item) continue;
+      last = r.item;
+      urlPayload = toPayload(r.item, r.lv);
+      if (urlPayload) break;
     }
   }
   if (!urlPayload) {

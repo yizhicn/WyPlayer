@@ -1,0 +1,28 @@
+# 静态资源缓存策略（减少重复请求、加快二次访问）
+
+# 字体分片文件名含内容哈希，可永久缓存
+/fonts/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/webfonts/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/img/*
+  Cache-Control: public, max-age=2592000
+
+# CSS/JS 无文件名哈希，给 1 天并依赖 SW 版本号更新
+/css/*
+  Cache-Control: public, max-age=86400
+
+/js/*
+  Cache-Control: public, max-age=86400
+
+# 入口与 SW 必须实时校验
+/index.html
+  Cache-Control: public, max-age=0, must-revalidate
+
+/sw.js
+  Cache-Control: public, max-age=0, must-revalidate
+
+/manifest.json
+  Cache-Control: public, max-age=86400

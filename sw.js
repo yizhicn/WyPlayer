@@ -1,4 +1,4 @@
-const CACHE_NAME = 'wyplayer-v28';
+const CACHE_NAME = 'wyplayer-v29';
 
 // 核心资源 - 安装时缓存
 const CORE_ASSETS = [
@@ -8,21 +8,14 @@ const CORE_ASSETS = [
   './css/noto-sans-sc.css',
   './css/variables.css',
   './css/components.css',
-  './js/tailwindcss.js',
+  './css/tailwind.css',
   './js/color-thief.umd.js',
   './js/play-effects.js',
   './img/icon.svg',
   './img/icon.png',
   './manifest.json'
 ];
-
-// 字体文件
-const FONT_ASSETS = [
-  './fonts/NotoSansSC-Regular.ttf',
-  './fonts/NotoSansSC-Medium.ttf',
-  './fonts/NotoSansSC-Bold.ttf',
-  './fonts/NotoSansSC-Black.ttf'
-];
+// 字体分片（fonts/*.woff2）由下方“本地资源缓存优先”策略按需缓存，无需预缓存
 
 function isApiRequest(url) {
   if (url.pathname.startsWith('/api')) return true;
